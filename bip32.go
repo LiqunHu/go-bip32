@@ -181,7 +181,7 @@ func (key *Key) getIntermediary(childIdx uint32) ([]byte, error) {
 }
 
 // Generate BIP44 account
-func (key *Key) derivePath(path string) (*Key, error) {
+func (key *Key) DerivePath(path string) (*Key, error) {
 
 	if path == "m" || path == "M" || path == "m'" || path == "M'" {
 		return key, nil
@@ -194,17 +194,21 @@ func (key *Key) derivePath(path string) (*Key, error) {
 			if value != "m" {
 				return nil, ErrInvalidPath
 			}
-			return nil, nil
+			continue
 		}
 		hardened := (len(value) > 1) && (value[len(value)-1] == '\'')
-		childId, err := strconv.Atoi(value)
-		childIndex := uint32(childId)
+		numValue := value
+		if hardened {
+			numValue = value[:len(value)-1]
+		}
+		childId, err := strconv.Atoi(numValue)
 		if err != nil {
 			return nil, err
 		}
-		if childIndex < FirstHardenedChild {
-			return nil, ErrInvalidIndex
-		}
+		childIndex := uint32(childId)
+		// if childId < int(FirstHardenedChild) {
+		// 	return nil, ErrInvalidIndex
+		// }
 
 		if hardened {
 			childIndex += FirstHardenedChild
