@@ -7,6 +7,8 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -42,6 +44,12 @@ var (
 
 	// ErrInvalidPublicKey is returned when a derived public key is invalid
 	ErrInvalidPublicKey = errors.New("Invalid public key")
+
+	// ErrInvalidPath is returned when a path is invalid
+	ErrInvalidPath = errors.New("Invalid path")
+
+	// ErrInvalidIndex is returned when an index is invalid
+	ErrInvalidIndex = errors.New("Invalid index")
 )
 
 // Key represents a bip32 extended key
@@ -170,6 +178,42 @@ func (key *Key) getIntermediary(childIdx uint32) ([]byte, error) {
 		return nil, err
 	}
 	return hmac.Sum(nil), nil
+}
+
+// Generate BIP44 account
+func (key *Key) derivePath(path string) (*Key, error) {
+
+	if path == "m" || path == "M" || path == "m'" || path == "M'" {
+		return key, nil
+	}
+
+	entries := strings.Split(path, "/")
+	hdkey := key
+	for index, value := range entries {
+		if index == 0 {
+			if value != "m" {
+				return nil, ErrInvalidPath
+			}
+			return nil, nil
+		}
+		hardened := (len(value) > 1) && (value[len(value)-1] == '\'')
+		childId, err := strconv.Atoi(value)
+		childIndex := uint32(childId)
+		if err != nil {
+			return nil, err
+		}
+		if childIndex < FirstHardenedChild {
+			return nil, ErrInvalidIndex
+		}
+
+		if hardened {
+			childIndex += FirstHardenedChild
+		}
+
+		hdkey, _ = hdkey.NewChildKey(childIndex)
+	}
+
+	return hdkey, nil
 }
 
 // PublicKey returns the public version of key or return a copy
